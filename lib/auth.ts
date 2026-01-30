@@ -1,6 +1,7 @@
 import { NextAuthOptions } from "next-auth"
 import TwitterProvider from "next-auth/providers/twitter"
 
+// Authentication configuration
 export const authConfig: NextAuthOptions = {
   providers: [
     TwitterProvider({
