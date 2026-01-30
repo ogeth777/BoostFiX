@@ -15,28 +15,7 @@ import { useToast } from '../components/ui/Toast';
 const USDT_MINT = new PublicKey("Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"); // Mainnet USDT
 
 // Mock initial tasks
-const INITIAL_TASKS: TaskItem[] = [
-  {
-    id: '1',
-    authorHandle: 'solana',
-    authorName: 'Solana',
-    content: 'Solana is the fastest blockchain in the world and the fastest growing ecosystem in crypto, with thousands of projects spanning DeFi, NFTs, Web3 and more.',
-    tweetUrl: 'https://twitter.com/solana',
-    reward: 0.05,
-    actions: { like: false, repost: false, reply: false },
-    status: 'pending'
-  },
-  {
-    id: '2',
-    authorHandle: 'toly',
-    authorName: 'toly',
-    content: 'chewing glass is actually good for you if you build on solana',
-    tweetUrl: 'https://twitter.com/aeyakovenko',
-    reward: 0.02,
-    actions: { like: false, repost: false, reply: false },
-    status: 'pending'
-  }
-];
+const INITIAL_TASKS: TaskItem[] = [];
 
 export default function Home() {
   const { connection } = useConnection();
@@ -136,32 +115,30 @@ export default function Home() {
       return;
     }
 
-    // Allow testing without real transaction if no treasury set, OR enforce it?
-    // User asked for "Real Deposit".
-    if (!treasuryAddress) {
-       // Fallback to simulation if no address provided, or strictly enforce?
-       // Let's enforce for "Real" feel, but provide a hint.
-       addToast('DEBUG: Please enter Receiver (Treasury) Wallet Address below.', 'error');
-       return;
-    }
-
-    let treasuryPubkey: PublicKey;
-    try {
-        treasuryPubkey = new PublicKey(treasuryAddress);
-    } catch (e) {
-        addToast('Invalid Receiver Address.', 'error');
-        return;
-    }
-
     try {
       addToast('Preparing transaction... Check your wallet.', 'info');
       
       // 1. Get ATAs
       const sourceATA = await getAssociatedTokenAddress(USDT_MINT, publicKey);
-      const destATA = await getAssociatedTokenAddress(USDT_MINT, treasuryPubkey);
+      const destATA = await getAssociatedTokenAddress(USDT_MINT, TREASURY_WALLET);
       
-      // 2. Create Transfer Instruction
-      const transaction = new Transaction().add(
+      const transaction = new Transaction();
+
+      // 2. Check if destination ATA exists, if not create it
+      const destAccount = await connection.getAccountInfo(destATA);
+      if (!destAccount) {
+         transaction.add(
+            createAssociatedTokenAccountInstruction(
+                publicKey, // payer
+                destATA,
+                TREASURY_WALLET, // owner
+                USDT_MINT
+            )
+         );
+      }
+
+      // 3. Create Transfer Instruction
+      transaction.add(
         createTransferInstruction(
           sourceATA,
           destATA,
@@ -176,13 +153,13 @@ export default function Home() {
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = publicKey;
 
-      // 3. Send
+      // 4. Send
       const signature = await sendTransaction(transaction, connection);
       
       addToast('Transaction sent! Waiting for confirmation...', 'info');
       await connection.confirmTransaction(signature, 'processed');
 
-      // 4. Update UI State
+      // 5. Update UI State
       setPromoBudget(prev => prev + amount);
       addToast(`Success! Deposited $${amount} USDT.`, 'success');
       
@@ -344,6 +321,19 @@ export default function Home() {
       setEarningBalance(0);
       addToast(`Successfully withdrew $${earningBalance.toFixed(2)} to your wallet!`, 'success');
     }, 2000);
+  };
+
+  const clearHistory = () => {
+    if (window.confirm('Are you sure you want to reset all app data? This cannot be undone.')) {
+      localStorage.clear();
+      setTasks(INITIAL_TASKS);
+      setActivities([]);
+      setEarningBalance(0);
+      setPromoBudget(0);
+      setReputation(50);
+      addToast('App data reset successfully!', 'success');
+      window.location.reload();
+    }
   };
 
   if (!isLoaded) return null; // Prevent hydration mismatch
@@ -527,18 +517,6 @@ export default function Home() {
               
               {activeTab === 'promote' && (
                 <div className="space-y-4 mt-6">
-                   {/* Debug / Test Input */}
-                   <div className="bg-white/5 p-3 rounded-lg border border-white/10">
-                      <label className="text-xs text-gray-400 block mb-1">Receiver Wallet (Debug/Test)</label>
-                      <input 
-                        type="text" 
-                        value={treasuryAddress}
-                        onChange={(e) => setTreasuryAddress(e.target.value)}
-                        placeholder="Paste Receiver Public Key"
-                        className="w-full bg-black/50 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-[#14F195] outline-none font-mono"
-                      />
-                   </div>
-
                    <div className="grid grid-cols-2 gap-3">
                     <button 
                       onClick={() => handleDeposit(1)}
@@ -608,6 +586,17 @@ export default function Home() {
             <div className="flex-1 overflow-hidden relative">
                <ActivityFeed activities={activities} />
             </div>
+          </div>
+
+          {/* DEBUG TOOLS */}
+          <div className="flex justify-center pt-4 pb-8">
+            <button 
+              onClick={clearHistory}
+              className="text-xs text-gray-600 hover:text-red-500 transition-colors flex items-center gap-1"
+            >
+              <RefreshCw size={12} />
+              Reset App Data (Debug)
+            </button>
           </div>
 
         </div>
