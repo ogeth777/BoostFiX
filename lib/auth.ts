@@ -32,17 +32,17 @@ export const authConfig: NextAuthOptions = {
         token.refreshToken = account.refresh_token;
       }
       if (user) {
-        token.handle = (user as any).handle;
+        token.handle = user.handle;
         token.id = user.id;
       }
       return token;
     },
     async session({ session, token }) {
       if (session?.user) {
-        (session.user as any).handle = token.handle;
-        (session.user as any).id = token.id;
+        session.user.handle = token.handle;
+        session.user.id = token.id as string;
         // Make token available for server-side API calls
-        (session as any).accessToken = token.accessToken;
+        session.accessToken = token.accessToken;
       }
       return session;
     }

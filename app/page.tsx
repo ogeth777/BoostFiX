@@ -4,15 +4,14 @@ import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { useState, useEffect } from 'react';
 import { PublicKey, Transaction } from '@solana/web3.js';
-import { getAssociatedTokenAddress, createTransferInstruction, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, createTransferInstruction, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { useSession, signIn, signOut } from "next-auth/react";
 import NextImage from 'next/image';
 import { Twitter, LayoutGrid, Settings, DollarSign, Wallet, ArrowRight, TrendingUp, Megaphone, Plus, CheckCircle, RefreshCw, X, LogOut, Loader2 } from 'lucide-react';
 import { ActivityFeed, ActivityItem } from '../components/ActivityFeed';
 import { EarnFeed, TaskItem } from '../components/EarnFeed';
 import { useToast } from '../components/ui/Toast';
-
-const USDT_MINT = new PublicKey("Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"); // Mainnet USDT
+import { CONFIG } from '../lib/config';
 
 // Mock initial tasks
 const INITIAL_TASKS: TaskItem[] = [];
@@ -31,8 +30,6 @@ export default function Home() {
   const isTwitterConnected = status === 'authenticated';
   const isConnectingTwitter = status === 'loading';
 
-  const [treasuryAddress, setTreasuryAddress] = useState(''); // Target wallet for deposits
-  
   // Balances
   const [earningBalance, setEarningBalance] = useState(0.00);
   const [promoBudget, setPromoBudget] = useState(0.00);
@@ -257,6 +254,9 @@ export default function Home() {
       return;
     }
 
+    // Set status to claiming to show loader
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'claiming' } : t));
+
     addToast('Verifying with X (Twitter)...', 'info');
 
     try {
@@ -310,8 +310,8 @@ export default function Home() {
   };
 
   const handleWithdraw = () => {
-    if (earningBalance < 0.5) {
-      addToast('Minimum withdrawal amount is $0.50', 'error');
+    if (earningBalance < CONFIG.MIN_WITHDRAWAL) {
+      addToast(`Minimum withdrawal amount is $${CONFIG.MIN_WITHDRAWAL.toFixed(2)}`, 'error');
       return;
     }
     
@@ -429,7 +429,7 @@ export default function Home() {
                         <Twitter size={16} />
                       )}
                    </div>
-                   <span className="text-sm font-medium text-gray-300">Connected as <span className="text-white font-bold">@{(session?.user as any)?.handle || session?.user?.name}</span></span>
+                   <span className="text-sm font-medium text-gray-300">Connected as <span className="text-white font-bold">@{session?.user?.handle || session?.user?.name}</span></span>
                 </div>
                 <button onClick={handleDisconnectTwitter} className="text-gray-500 hover:text-red-400 transition-colors">
                    <LogOut size={18} />

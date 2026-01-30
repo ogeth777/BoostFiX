@@ -9,11 +9,11 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { taskId, actionType, tweetUrl } = body;
 
-    if (!session || !(session as any).accessToken) {
+    if (!session || !session.accessToken) {
       return NextResponse.json({ success: false, error: 'Unauthorized: Please reconnect Twitter' }, { status: 401 });
     }
 
-    const accessToken = (session as any).accessToken;
+    const accessToken = session.accessToken;
     
     // Initialize Twitter Client with User's Access Token
     const client = new TwitterApi(accessToken);
@@ -40,9 +40,9 @@ export async function POST(req: NextRequest) {
         "tweet.fields": ["id"] 
       });
       
-      // Check if the target tweet ID exists in the liked list
-      // Note: likedTweets.data might be undefined if no likes
-      const likes = likedTweets.data || [];
+      // Fix: Access the tweets array correctly using the .tweets getter
+      // likedTweets is a Paginator, .tweets gives the array of data from the current page
+      const likes = likedTweets.tweets || [];
       verified = likes.some(tweet => tweet.id === tweetId);
     } 
     else if (actionType === 'repost') {

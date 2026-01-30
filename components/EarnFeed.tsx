@@ -128,9 +128,14 @@ export const EarnFeed = ({ tasks, onCompleteTask, onClaimReward }: EarnFeedProps
             </div>
 
             {/* Status / Claim Section */}
-            {task.status === 'verifying' && task.claimableAt && (
+            {(task.status === 'verifying' || task.status === 'claiming') && task.claimableAt && (
               <div className="mt-3">
-                {now < task.claimableAt ? (
+                {task.status === 'claiming' ? (
+                   <div className="w-full bg-[#14F195]/20 border border-[#14F195]/30 rounded-lg py-2 flex items-center justify-center gap-2 text-[#14F195] font-bold text-sm animate-pulse">
+                      <Loader2 size={16} className="animate-spin" />
+                      Verifying with API...
+                   </div>
+                ) : now < task.claimableAt ? (
                   <div className="w-full bg-yellow-500/10 border border-yellow-500/20 rounded-lg py-2 px-4 flex items-center justify-center gap-2 text-yellow-500 text-sm font-medium animate-pulse">
                     <Loader2 size={16} className="animate-spin" />
                     Verifying permanence... ({formatTimeLeft(task.claimableAt)})
