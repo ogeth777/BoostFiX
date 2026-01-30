@@ -5,7 +5,7 @@ import { TwitterApi } from 'twitter-api-v2';
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(authConfig);
     const body = await req.json();
     const { taskId, actionType, tweetUrl } = body;
 
