@@ -17,6 +17,7 @@ const nextConfig = {
       ...config.resolve.fallback,
       "pino-pretty": false,
     };
+    config.externals.push('pino-pretty');
     return config;
   },
 };
