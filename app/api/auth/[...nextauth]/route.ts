@@ -1,12 +1,17 @@
-import NextAuth from "next-auth"
+import NextAuth, { NextAuthOptions } from "next-auth"
 import TwitterProvider from "next-auth/providers/twitter"
 
-const handler = NextAuth({
+export const authOptions: NextAuthOptions = {
   providers: [
     TwitterProvider({
       clientId: process.env.TWITTER_CLIENT_ID || "",
       clientSecret: process.env.TWITTER_CLIENT_SECRET || "",
       version: "2.0", // opt-in to Twitter OAuth 2.0
+      authorization: {
+        params: {
+          scope: "users.read tweet.read like.read follows.read offline.access",
+        },
+      },
       profile(profile) {
         return {
           id: profile.data.id,
@@ -20,7 +25,11 @@ const handler = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user, profile }) {
+    async jwt({ token, user, account, profile }) {
+      if (account) {
+        token.accessToken = account.access_token;
+        token.refreshToken = account.refresh_token;
+      }
       if (user) {
         token.handle = (user as any).handle;
         token.id = user.id;
@@ -31,11 +40,15 @@ const handler = NextAuth({
       if (session?.user) {
         (session.user as any).handle = token.handle;
         (session.user as any).id = token.id;
+        // Make token available for server-side API calls
+        (session as any).accessToken = token.accessToken;
       }
       return session;
     }
   },
   secret: process.env.NEXTAUTH_SECRET,
-})
+}
+
+const handler = NextAuth(authOptions)
 
 export { handler as GET, handler as POST }

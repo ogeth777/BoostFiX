@@ -261,53 +261,75 @@ export default function Home() {
           ...t,
           actions: { ...t.actions, [actionType]: true },
           status: 'verifying',
-          claimableAt: Date.now() + 30000 // 30 seconds delay for demo (Real: 5 mins)
+          claimableAt: Date.now() + 5000 // 5 seconds delay for API consistency
         };
       }
       return t;
     }));
 
-    addToast('Action recorded. Verifying permanence... Reward claimable in 30s.', 'info');
+    addToast('Action recorded. Click "Claim" in 5s to verify.', 'info');
   };
 
-  const handleClaimReward = (taskId: string) => {
+  const handleClaimReward = async (taskId: string) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
 
     if (task.claimableAt && Date.now() < task.claimableAt) {
       const remaining = Math.ceil((task.claimableAt - Date.now()) / 1000);
-      addToast(`Verification in progress. Please wait ${remaining}s.`, 'error');
+      addToast(`Please wait ${remaining}s for Twitter API update.`, 'error');
       return;
     }
 
-    // SIMULATED FRAUD CHECK
-    // 10% chance that the user "deleted" the post
-    const isFraud = Math.random() < 0.1;
+    addToast('Verifying with X (Twitter)...', 'info');
 
-    if (isFraud) {
-      setReputation(prev => Math.max(0, prev - 5));
-      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'failed' } : t));
-      addToast('Verification FAILED: Action was undone/deleted. Reputation decreased!', 'error');
-      return;
+    try {
+        // Determine primary action to verify
+        // For now, default to 'like' if multiple are present, or the most recent?
+        // The API currently handles one action type.
+        // Let's check 'like' if it's true.
+        const actionType = task.actions.like ? 'like' : (task.actions.repost ? 'repost' : 'reply');
+
+        const response = await fetch('/api/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                taskId, 
+                actionType, 
+                tweetUrl: task.tweetUrl 
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Success Path
+            setEarningBalance(prev => prev + task.reward);
+            setReputation(prev => Math.min(100, prev + 1));
+            setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'completed' } : t));
+            
+            addToast(`Verification complete! Earned $${task.reward.toFixed(2)} (+1 Rep)`, 'success');
+
+            // Log activity
+            const newActivity: ActivityItem = {
+              id: Math.random().toString(36).substr(2, 9),
+              type: 'tip_like', // Generic for now
+              amount: task.reward,
+              token: 'USDC',
+              date: 'Just now',
+              twitterHandle: `@${task.authorHandle}`
+            };
+            setActivities(prev => [newActivity, ...prev]);
+        } else {
+            // Failure Path
+            setReputation(prev => Math.max(0, prev - 5));
+            setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'failed' } : t));
+            addToast(`Verification FAILED: ${data.error || 'Action not found on X/Twitter.'}`, 'error');
+        }
+
+    } catch (error) {
+        console.error('Claim Error:', error);
+        addToast('System Error during verification.', 'error');
     }
-
-    // Success Path
-    setEarningBalance(prev => prev + task.reward);
-    setReputation(prev => Math.min(100, prev + 1));
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'completed' } : t));
-    
-    addToast(`Verification complete! Earned $${task.reward.toFixed(2)} (+1 Rep)`, 'success');
-
-    // Log activity
-    const newActivity: ActivityItem = {
-      id: Math.random().toString(36).substr(2, 9),
-      type: 'tip_like', // Generic for now
-      amount: task.reward,
-      token: 'USDC',
-      date: 'Just now',
-      twitterHandle: `@${task.authorHandle}`
-    };
-    setActivities(prev => [newActivity, ...prev]);
   };
 
   const handleWithdraw = () => {
