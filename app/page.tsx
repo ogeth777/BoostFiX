@@ -5,6 +5,7 @@ import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { useState, useEffect } from 'react';
 import { PublicKey, Transaction } from '@solana/web3.js';
 import { getAssociatedTokenAddress, createTransferInstruction, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { useSession, signIn, signOut } from "next-auth/react";
 import NextImage from 'next/image';
 import { Twitter, LayoutGrid, Settings, DollarSign, Wallet, ArrowRight, TrendingUp, Megaphone, Plus, CheckCircle, RefreshCw, X, LogOut, Loader2 } from 'lucide-react';
 import { ActivityFeed, ActivityItem } from '../components/ActivityFeed';
@@ -47,8 +48,10 @@ export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false);
 
   // User State
-  const [isTwitterConnected, setIsTwitterConnected] = useState(false);
-  const [isConnectingTwitter, setIsConnectingTwitter] = useState(false);
+  const { data: session, status } = useSession();
+  const isTwitterConnected = status === 'authenticated';
+  const isConnectingTwitter = status === 'loading';
+
   const [treasuryAddress, setTreasuryAddress] = useState(''); // Target wallet for deposits
   
   // Balances
@@ -78,18 +81,15 @@ export default function Home() {
         // User Specific Data
         if (connected && publicKey) {
           const key = publicKey.toBase58();
-          const savedTwitter = localStorage.getItem(`boostfix_twitter_${key}`);
           const savedEarnings = localStorage.getItem(`boostfix_earnings_${key}`);
           const savedBudget = localStorage.getItem(`boostfix_budget_${key}`);
           const savedReputation = localStorage.getItem(`boostfix_reputation_${key}`);
 
-          setIsTwitterConnected(savedTwitter === 'true');
           setEarningBalance(savedEarnings ? parseFloat(savedEarnings) : 0);
           setPromoBudget(savedBudget ? parseFloat(savedBudget) : 0);
           setReputation(savedReputation ? parseInt(savedReputation) : 50);
         } else {
           // Reset if no wallet
-          setIsTwitterConnected(false);
           setEarningBalance(0);
           setPromoBudget(0);
           setReputation(50);
@@ -115,27 +115,19 @@ export default function Home() {
     // User Specific
     if (connected && publicKey) {
         const key = publicKey.toBase58();
-        localStorage.setItem(`boostfix_twitter_${key}`, isTwitterConnected.toString());
         localStorage.setItem(`boostfix_earnings_${key}`, earningBalance.toString());
         localStorage.setItem(`boostfix_budget_${key}`, promoBudget.toString());
         localStorage.setItem(`boostfix_reputation_${key}`, reputation.toString());
     }
-  }, [isTwitterConnected, earningBalance, promoBudget, reputation, tasks, activities, isLoaded, connected, publicKey]);
+  }, [earningBalance, promoBudget, reputation, tasks, activities, isLoaded, connected, publicKey]);
 
   // Handlers
   const handleConnectTwitter = () => {
-    setIsConnectingTwitter(true);
-    // Simulate OAuth flow window
-    setTimeout(() => {
-      setIsConnectingTwitter(false);
-      setIsTwitterConnected(true);
-      addToast('Twitter account connected successfully!', 'success');
-    }, 1500);
+    signIn('twitter');
   };
 
   const handleDisconnectTwitter = () => {
-    setIsTwitterConnected(false);
-    addToast('Twitter account disconnected.', 'info');
+    signOut();
   };
 
   const handleDeposit = async (amount: number) => {
@@ -238,8 +230,8 @@ export default function Home() {
 
     const newTask: TaskItem = {
       id: Math.random().toString(36).substr(2, 9),
-      authorHandle: 'my_brand', 
-      authorName: 'My Brand',
+      authorHandle: session?.user?.name || 'anonymous', 
+      authorName: session?.user?.name || 'Anonymous',
       content: `Promoted Tweet: ${newCampaignUrl}`,
       tweetUrl: newCampaignUrl,
       reward: costPerAction,
@@ -419,9 +411,13 @@ export default function Home() {
              <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-4 py-3">
                 <div className="flex items-center gap-3">
                    <div className="w-8 h-8 rounded-full bg-[#1D9BF0] flex items-center justify-center text-white">
-                      <Twitter size={16} />
+                      {session?.user?.image ? (
+                        <NextImage src={session.user.image} alt="Profile" width={32} height={32} className="rounded-full" />
+                      ) : (
+                        <Twitter size={16} />
+                      )}
                    </div>
-                   <span className="text-sm font-medium text-gray-300">Connected as <span className="text-white font-bold">@demo_user</span></span>
+                   <span className="text-sm font-medium text-gray-300">Connected as <span className="text-white font-bold">@{session?.user?.name}</span></span>
                 </div>
                 <button onClick={handleDisconnectTwitter} className="text-gray-500 hover:text-red-400 transition-colors">
                    <LogOut size={18} />

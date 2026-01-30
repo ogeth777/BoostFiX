@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { WalletContextProvider } from "@/components/WalletContextProvider";
 import { ToastProvider } from "@/components/ui/Toast";
+import SessionProvider from "@/components/SessionProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -22,11 +23,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <WalletContextProvider>
-          <ToastProvider>
-            {children}
-          </ToastProvider>
-        </WalletContextProvider>
+        <SessionProvider>
+          <WalletContextProvider>
+            <ToastProvider>
+              {children}
+            </ToastProvider>
+          </WalletContextProvider>
+        </SessionProvider>
       </body>
     </html>
   );
