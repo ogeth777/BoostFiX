@@ -417,7 +417,7 @@ export default function Home() {
                         <Twitter size={16} />
                       )}
                    </div>
-                   <span className="text-sm font-medium text-gray-300">Connected as <span className="text-white font-bold">@{session?.user?.name}</span></span>
+                   <span className="text-sm font-medium text-gray-300">Connected as <span className="text-white font-bold">@{(session?.user as any)?.handle || session?.user?.name}</span></span>
                 </div>
                 <button onClick={handleDisconnectTwitter} className="text-gray-500 hover:text-red-400 transition-colors">
                    <LogOut size={18} />
